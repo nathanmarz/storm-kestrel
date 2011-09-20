@@ -11,3 +11,25 @@ By default, `KestrelSpout` emits 1-tuples containing a byte array as its output.
 ## As a DRPC adapter
 
 `KestrelAdder` can be used with a DRPC server to allow the server to put DRPC requests onto a Kestrel queue. 
+
+
+## Maven
+
+storm-kestrel is hosted on the Clojars maven repo. To include it as a dependency in your project, add Clojars as a Maven repository to your pom.xml with the following snippet:
+
+```xml
+<repository>
+  <id>clojars.org</id>
+  <url>http://clojars.org/repo</url>
+</repository>
+```
+
+Then, you can add storm-kestrel as a dependency like so:
+
+```xml
+<dependency>
+  <groupId>storm</groupId>
+  <artifactId>storm-kestrel</artifactId>
+  <version>0.5.0</version>
+</dependency>
+```
