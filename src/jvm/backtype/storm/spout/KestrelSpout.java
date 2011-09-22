@@ -151,7 +151,10 @@ public class KestrelSpout implements IRichSpout {
     private void blacklist(KestrelClientInfo info, Throwable t) {
         LOG.warn("Failed to read from Kestrel at " + info.host + ":" + info.port, t);
         try {
+          //this case can happen when it fails to connect to Kestrel (and so never stores the connection)
+          if(info.client!=null) {
             info.client.close();
+          }
         } catch (IOException ex) {
             LOG.warn("Failed to close Kestrel client at " + info.host + ":" + info.port, t);
         }
