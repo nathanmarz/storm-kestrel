@@ -1,6 +1,6 @@
 Library to use Kestrel as a spout from within Storm. It also has an adapter to allow a DRPC server to enqueue DRPC requests to Kestrel.
 
-To use this spout, you need to use [this fork](https://github.com/nathanmarz/kestrel) of Kestrel. This library required out-of-order acking to be exposed via Kestrel's memcached API. This is not exposed in Kestrel's master repo, but it is exposed in our fork. We hope to have this functionality rolled into master soon.
+To use this spout, you need to use [this fork](https://github.com/nathanmarz/kestrel) of Kestrel. This library requires out-of-order acking to be exposed via Kestrel's memcached API. This is not exposed in Kestrel's master repo, but it is exposed in our fork. We hope to have this functionality rolled into master soon.
 
 ## Spout usage
 
