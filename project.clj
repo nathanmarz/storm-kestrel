@@ -1,4 +1,4 @@
-(defproject storm/storm-kestrel "0.5.4"
+(defproject storm/storm-kestrel "0.5.5-SNAPSHOT"
   :java-source-path "src/jvm"
   :javac-options {:debug "true" :fork "true"}
   :dependencies []
