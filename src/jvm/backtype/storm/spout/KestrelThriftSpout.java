@@ -27,8 +27,8 @@ import net.lag.kestrel.ThriftClient;
  * multiple of the number of Kestrel servers, otherwise the read load will be
  * higher on some Kestrel servers than others.
  */
-public class KestrelV3Spout implements IRichSpout {
-    public static Logger LOG = Logger.getLogger(KestrelV3Spout.class);
+public class KestrelThriftSpout implements IRichSpout {
+    public static Logger LOG = Logger.getLogger(KestrelThriftSpout.class);
 
     public static final long BLACKLIST_TIME_MS = 1000 * 60;
     public static final int BATCH_SIZE = 4000;
@@ -95,7 +95,7 @@ public class KestrelV3Spout implements IRichSpout {
         }
     }
     
-    public KestrelV3Spout(List<String> hosts, int port, String queueName, Scheme scheme) {
+    public KestrelThriftSpout(List<String> hosts, int port, String queueName, Scheme scheme) {
         if(hosts.isEmpty()) {
             throw new IllegalArgumentException("Must configure at least one host");
         }
@@ -105,15 +105,15 @@ public class KestrelV3Spout implements IRichSpout {
         _scheme = scheme;        
     }
     
-    public KestrelV3Spout(String hostname, int port, String queueName, Scheme scheme) {
+    public KestrelThriftSpout(String hostname, int port, String queueName, Scheme scheme) {
         this(Arrays.asList(hostname), port, queueName, scheme);
     }
 
-    public KestrelV3Spout(String hostname, int port, String queueName) {
+    public KestrelThriftSpout(String hostname, int port, String queueName) {
         this(hostname, port, queueName, new RawScheme());
     }
     
-    public KestrelV3Spout(List<String> hosts, int port, String queueName) {
+    public KestrelThriftSpout(List<String> hosts, int port, String queueName) {
         this(hosts, port, queueName, new RawScheme());
     }
 
@@ -171,7 +171,7 @@ public class KestrelV3Spout implements IRichSpout {
                 EmitItem emitItem = new EmitItem(_scheme.deserialize(item.get_data()),
                                                  new KestrelSourceId(index, item.get_xid()));
                 if(!_emitBuffer.offer(emitItem)) {
-                    throw new RuntimeException("KestrelV3Spout's Internal Buffer Enqeueue Failed.");
+                    throw new RuntimeException("KestrelThriftSpout's Internal Buffer Enqeueue Failed.");
                 }
             }
 
