@@ -1,4 +1,5 @@
 (defproject storm/storm-kestrel "0.6.0"
+  :source-path "src/clj"
   :java-source-path "src/jvm"
   :javac-options {:debug "true" :fork "true"}
   :dependencies []
