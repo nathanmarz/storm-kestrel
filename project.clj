@@ -1,7 +1,7 @@
-(defproject storm/storm-kestrel "0.5.5-SNAPSHOT"
+(defproject storm/storm-kestrel "0.6.0"
   :java-source-path "src/jvm"
   :javac-options {:debug "true" :fork "true"}
-  :dependencies []
-  :dev-dependencies [[storm "0.5.4"]]
+  :dependencies [[kestrel-thrift-java-bindings "0.5.0"]]
+  :dev-dependencies [[storm "0.6.0"]]
   :jvm-opts ["-Djava.library.path=/usr/local/lib:/opt/local/lib:/usr/lib"]
 )
