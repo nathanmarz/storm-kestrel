@@ -56,13 +56,13 @@ public class KestrelThriftSpout implements IRichSpout {
     }
     
     private static class KestrelSourceId {
-        public KestrelSourceId(int index, int id) {
+        public KestrelSourceId(int index, long id) {
             this.index = index;
             this.id = id;
         }
         
         int index;
-        int id;
+        long id;
     }
     
     private static class KestrelClientInfo {
