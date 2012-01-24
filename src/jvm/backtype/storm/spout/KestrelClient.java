@@ -100,10 +100,11 @@ public class KestrelClient {
         return ("GET " + queueName + "/ack/id=" + id + "\r\n").getBytes();
     }
     
-    private byte[] setCommand(String queueName, String value) {
+    private byte[] setCommand(String queueName, String value, String expiration) {
         int len = value.getBytes().length;
-        return ("SET " + queueName + " 0 0 " + len + "\r\n" + value + "\r\n").getBytes();
-    }
+        
+        return ("SET " + queueName + " 0 " + expiration + " " + len + "\r\n" + value + "\r\n").getBytes();
+    	}
 
     private void protocolExpect(String expected, String actual)
         throws ParseError {
@@ -175,10 +176,17 @@ public class KestrelClient {
         _os.write(ackCommand(queueName, id));
         return parseBooleanOutput("TRANSACTION_ACK");
     }
-
-    public boolean queue(String queueName, String val)
-        throws ParseError, IOException {
-        _os.write(setCommand(queueName, val));
-        return parseBooleanOutput("STORED");
-    }
+    
+    	public boolean queue(String queueName, String val)
+        	throws ParseError, IOException {
+        	_os.write(setCommand(queueName, val, "0"));
+        	return parseBooleanOutput("STORED");
+    	}
+    
+    public boolean queue(String queueName, String val, long expiration)
+            throws ParseError, IOException {
+            _os.write(setCommand(queueName, val, String.valueOf(expiration)));
+            return parseBooleanOutput("STORED");
+        }
+        
 }
