@@ -2,8 +2,8 @@ package backtype.storm.spout;
 
 import backtype.storm.spout.KestrelClient.ParseError;
 import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.OutputFieldsDeclarer;
+import backtype.storm.topology.base.BaseRichSpout;
 import java.io.*;
 import java.util.Map;
 import java.util.List;
@@ -20,7 +20,7 @@ import org.apache.log4j.Logger;
  * multiple of the number of Kestrel servers, otherwise the read load will be
  * higher on some Kestrel servers than others.
  */
-public class KestrelSpout implements IRichSpout {
+public class KestrelSpout extends BaseRichSpout {
     public static Logger LOG = Logger.getLogger(KestrelSpout.class);
 
     public static final long BLACKLIST_TIME_MS = 1000 * 60;
@@ -194,10 +194,6 @@ public class KestrelSpout implements IRichSpout {
         } catch(ParseError e) {
             blacklist(info, e);            
         }
-    }
-
-    public boolean isDistributed() {
-        return true;
     }
 
     public void declareOutputFields(OutputFieldsDeclarer declarer) {

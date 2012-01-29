@@ -1,10 +1,8 @@
 package backtype.storm.spout;
 
 import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.OutputFieldsDeclarer;
-import java.io.*;
-import java.util.Set;
+import backtype.storm.topology.base.BaseRichSpout;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.List;
@@ -27,7 +25,7 @@ import net.lag.kestrel.ThriftClient;
  * multiple of the number of Kestrel servers, otherwise the read load will be
  * higher on some Kestrel servers than others.
  */
-public class KestrelThriftSpout implements IRichSpout {
+public class KestrelThriftSpout extends BaseRichSpout {
     public static Logger LOG = Logger.getLogger(KestrelThriftSpout.class);
 
     public static final long BLACKLIST_TIME_MS = 1000 * 60;
@@ -250,10 +248,6 @@ public class KestrelThriftSpout implements IRichSpout {
         } catch(TException e) {
             blacklist(info, e);            
         }
-    }
-
-    public boolean isDistributed() {
-        return true;
     }
 
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
