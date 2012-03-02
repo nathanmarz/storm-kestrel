@@ -10,11 +10,6 @@ The spout deals gracefully with any errors coming from Kestrel. It will blacklis
 
 By default, `KestrelSpout` emits 1-tuples containing a byte array as its output. You can provide a `Scheme` to the KestrelSpout to deserialize those byte arrays into a tuple structure of your choosing. This library comes with a `StringScheme` that will UTF-decode the byte arrays into Java strings.
 
-## As a DRPC adapter
-
-`KestrelAdder` can be used with a DRPC server to allow the server to put DRPC requests onto a Kestrel queue. 
-
-
 ## Maven
 
 storm-kestrel is hosted on the Clojars maven repo. To include it as a dependency in your project, add Clojars as a Maven repository to your pom.xml with the following snippet:
@@ -32,6 +27,6 @@ Then, you can add storm-kestrel as a dependency like so:
 <dependency>
   <groupId>storm</groupId>
   <artifactId>storm-kestrel</artifactId>
-  <version>0.5.0</version>
+  <version>0.6.0</version>
 </dependency>
 ```
