@@ -17,7 +17,7 @@ public class StringScheme implements Scheme {
     }
 
     public Fields getOutputFields() {
-        return new Fields("str");
+        return new Fields("str", "id");
     }
 }
 

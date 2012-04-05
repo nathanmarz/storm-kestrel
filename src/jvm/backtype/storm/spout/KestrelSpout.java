@@ -129,6 +129,7 @@ public class KestrelSpout implements IRichSpout {
                     KestrelClient.Item item = info.client.dequeue(_queueName);
                     if(item!=null) {
                         List<Object> tuple = _scheme.deserialize(item._data);
+                        tuple.add(item._id);
                         _collector.emit(tuple, new KestrelSourceId(index, item._id));
                         success = true;
                         _emitIndex = index;
