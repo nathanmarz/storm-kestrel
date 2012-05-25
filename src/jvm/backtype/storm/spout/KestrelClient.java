@@ -1,5 +1,10 @@
 package backtype.storm.spout;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
@@ -38,7 +43,7 @@ public class KestrelClient {
             return data;
         }
 
-        public String readLine() 
+        public String readLine()
             throws ParseError, IOException {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
@@ -64,7 +69,7 @@ public class KestrelClient {
     private MixedInputStream _mis = null;
     private Socket _sock = null;
 
-    public KestrelClient(String hostname, int port) 
+    public KestrelClient(String hostname, int port)
         throws IOException {
         _sock = new Socket();
         _sock.connect(new InetSocketAddress(hostname, port), 30000);
@@ -77,7 +82,7 @@ public class KestrelClient {
         _rdr = new BufferedReader(new InputStreamReader(_is), 1);
     }
 
-    public void close() 
+    public void close()
         throws IOException {
         _rdr.close();
         _is.close();
@@ -99,21 +104,39 @@ public class KestrelClient {
     private byte[] ackCommand(String queueName, int id) {
         return ("GET " + queueName + "/ack/id=" + id + "\r\n").getBytes();
     }
-    
-    private byte[] setCommand(String queueName, String value) {
-        int len = value.getBytes().length;
-        return ("SET " + queueName + " 0 0 " + len + "\r\n" + value + "\r\n").getBytes();
+
+    private byte[] setCommand(String queueName, byte[] value) {
+    	byte[] prefix = ("SET " + queueName + " 0 0 " + value.length + "\r\n").getBytes();
+    	byte[] suffix = "\r\n".getBytes();
+    	byte[] command = new byte[prefix.length + value.length + suffix.length];
+
+    	byte[] b = concatenate(prefix,value,suffix);
+    	return b;
+    }
+
+    private byte[] concatenate(byte[]... byteArrays) {
+    	int len = 0;
+    	for (byte[] arr : byteArrays) {
+    		len += arr.length;
+    	}
+    	byte[] result = new byte[len];
+    	int pos = 0;
+    	for (byte[] arr : byteArrays) {
+    		System.arraycopy(arr, 0, result, pos, arr.length);
+    		pos += arr.length;
+    	}
+    	return result;
     }
 
     private void protocolExpect(String expected, String actual)
         throws ParseError {
         if(!expected.equals(actual)) {
-            throw new ParseError("Protocol Violation: Expected `" + expected + 
+            throw new ParseError("Protocol Violation: Expected `" + expected +
                                  "`; Actual: `" + actual + "`");
         }
     }
 
-    private Item parseDequeueOutputItem(String[] header_tokens) 
+    private Item parseDequeueOutputItem(String[] header_tokens)
         throws IOException, ParseError {
 
         if(header_tokens.length != 4) { throw new ParseError(); }
@@ -133,10 +156,10 @@ public class KestrelClient {
         return new Item(data, id);
     }
 
-    private boolean parseBooleanOutput(String expected) 
+    private boolean parseBooleanOutput(String expected)
         throws IOException, ParseError {
         String header = _mis.readLine();
-        if(header.equals("END")) { 
+        if(header.equals("END")) {
             return false;
         } else if(header.equals(expected)) {
             return true;
@@ -152,7 +175,7 @@ public class KestrelClient {
         if(header_tokens[0].equals("END")) {
             return null; // No object on the Q.
         } else if(header_tokens[0].equals("VALUE")) {
-            return parseDequeueOutputItem(header_tokens); 
+            return parseDequeueOutputItem(header_tokens);
         } else {  // Typically CLIENT_ERROR is returned here.
             throw new ParseError("Kestrel Server Response: " + header);
         }
@@ -177,6 +200,11 @@ public class KestrelClient {
     }
 
     public boolean queue(String queueName, String val)
+        throws ParseError, IOException {
+        return queue(queueName, val.getBytes());
+    }
+
+    public boolean queue(String queueName, byte[] val)
         throws ParseError, IOException {
         _os.write(setCommand(queueName, val));
         return parseBooleanOutput("STORED");
