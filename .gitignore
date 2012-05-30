@@ -19,3 +19,4 @@ NANNY
 .lein-failures
 _release
 *.zip
+.lein-deps-sum
