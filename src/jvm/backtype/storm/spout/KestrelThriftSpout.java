@@ -14,9 +14,8 @@ import backtype.storm.utils.Utils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import org.apache.log4j.Logger;
-import org.apache.thrift.TException;
 import net.lag.kestrel.thrift.Item;
-import net.lag.kestrel.ThriftClient;
+import org.apache.thrift7.TException;
 
 
 /**
@@ -68,7 +67,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
         public String host;
         public int port;
 
-        private ThriftClient client;
+        private KestrelThriftClient client;
         
         public KestrelClientInfo(String host, int port) {
             this.host = host;
@@ -77,10 +76,10 @@ public class KestrelThriftSpout extends BaseRichSpout {
             this.client  = null;
         }
 
-        public ThriftClient getValidClient() throws TException {
+        public KestrelThriftClient getValidClient() throws TException {
             if(this.client==null) { // If client was blacklisted, remake it.
                 LOG.info("Attempting reconnect to kestrel " + this.host + ":" + this.port);
-                this.client = new ThriftClient(this.host, this.port);
+                this.client = new KestrelThriftClient(this.host, this.port);
             }
             return this.client;
         }
@@ -119,7 +118,10 @@ public class KestrelThriftSpout extends BaseRichSpout {
        return _scheme.getOutputFields();
     }
     
+    int _messageTimeoutMillis;
+    
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+        _messageTimeoutMillis = 1000 * context.maxTopologyMessageTimeout();
         _collector = collector;
         _emitIndex = 0;
         _kestrels = new ArrayList<KestrelClientInfo>();
@@ -155,19 +157,19 @@ public class KestrelThriftSpout extends BaseRichSpout {
         if(now > info.blacklistTillTimeMs) {
             List<Item> items = null;
             try {
-                items = info.getValidClient().get(_queueName, BATCH_SIZE, 0, false);
+                items = info.getValidClient().get(_queueName, BATCH_SIZE, 0, _messageTimeoutMillis);
             } catch(TException e) {
                 blacklist(info, e);
                 return false;
             }
 
             assert items.size() <= BATCH_SIZE;
-            LOG.info("Kestrel batch get fetched " + items.size() + " items. (batchSize= " + BATCH_SIZE + 
-                     " queueName=" + _queueName + ", index=" + index + ", host=" + info.host + ")");
+//            LOG.info("Kestrel batch get fetched " + items.size() + " items. (batchSize= " + BATCH_SIZE + 
+//                     " queueName=" + _queueName + ", index=" + index + ", host=" + info.host + ")");
 
             for(Item item : items) {
                 EmitItem emitItem = new EmitItem(_scheme.deserialize(item.get_data()),
-                                                 new KestrelSourceId(index, item.get_xid()));
+                                                 new KestrelSourceId(index, item.get_id()));
                 if(!_emitBuffer.offer(emitItem)) {
                     throw new RuntimeException("KestrelThriftSpout's Internal Buffer Enqeueue Failed.");
                 }
