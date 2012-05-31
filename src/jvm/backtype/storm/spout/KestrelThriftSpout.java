@@ -1,5 +1,6 @@
 package backtype.storm.spout;
 
+import backtype.storm.Config;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichSpout;
@@ -121,7 +122,9 @@ public class KestrelThriftSpout extends BaseRichSpout {
     int _messageTimeoutMillis;
     
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
-        _messageTimeoutMillis = 1000 * context.maxTopologyMessageTimeout();
+        //TODO: should switch this to maxTopologyMessageTimeout
+        Number timeout = (Number) conf.get(Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS);
+        _messageTimeoutMillis = 1000 * timeout.intValue();
         _collector = collector;
         _emitIndex = 0;
         _kestrels = new ArrayList<KestrelClientInfo>();
