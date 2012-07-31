@@ -188,7 +188,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
 
             if(toAck.size() > 0) {
                 try {
-                    info.client.abort(_queueName, toAck);
+                    info.client.confirm(_queueName, toAck);
                 } catch(TException e) {
                     blacklist(info, e);
                 }
