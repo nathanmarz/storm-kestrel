@@ -20,7 +20,7 @@ import org.apache.thrift7.TException;
 
 
 /**
- * This spout can be used to consume messages in a reliable way from a cluster 
+ * This spout can be used to consume messages in a reliable way from a cluster
  * of Kestrel servers. It is recommended that you set the parallelism hint to a
  * multiple of the number of Kestrel servers, otherwise the read load will be
  * higher on some Kestrel servers than others.
@@ -30,8 +30,8 @@ public class KestrelThriftSpout extends BaseRichSpout {
 
     public static final long BLACKLIST_TIME_MS = 1000 * 60;
     public static final int BATCH_SIZE = 4000;
-    
-    
+
+
     private List<String> _hosts = null;
     private int _port = -1;
     private String _queueName = null;
@@ -52,24 +52,24 @@ public class KestrelThriftSpout extends BaseRichSpout {
             this.sourceId = sourceId;
         }
     }
-    
+
     private static class KestrelSourceId {
         public KestrelSourceId(int index, long id) {
             this.index = index;
             this.id = id;
         }
-        
+
         int index;
         long id;
     }
-    
+
     private static class KestrelClientInfo {
         public Long blacklistTillTimeMs;
         public String host;
         public int port;
 
         private KestrelThriftClient client;
-        
+
         public KestrelClientInfo(String host, int port) {
             this.host = host;
             this.port = port;
@@ -92,7 +92,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
             }
         }
     }
-    
+
     public KestrelThriftSpout(List<String> hosts, int port, String queueName, Scheme scheme) {
         if(hosts.isEmpty()) {
             throw new IllegalArgumentException("Must configure at least one host");
@@ -100,9 +100,9 @@ public class KestrelThriftSpout extends BaseRichSpout {
         _port = port;
         _hosts = hosts;
         _queueName = queueName;
-        _scheme = scheme;        
+        _scheme = scheme;
     }
-    
+
     public KestrelThriftSpout(String hostname, int port, String queueName, Scheme scheme) {
         this(Arrays.asList(hostname), port, queueName, scheme);
     }
@@ -110,7 +110,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
     public KestrelThriftSpout(String hostname, int port, String queueName) {
         this(hostname, port, queueName, new RawScheme());
     }
-    
+
     public KestrelThriftSpout(List<String> hosts, int port, String queueName) {
         this(hosts, port, queueName, new RawScheme());
     }
@@ -118,9 +118,9 @@ public class KestrelThriftSpout extends BaseRichSpout {
     public Fields getOutputFields() {
        return _scheme.getOutputFields();
     }
-    
+
     int _messageTimeoutMillis;
-    
+
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
         //TODO: should switch this to maxTopologyMessageTimeout
         Number timeout = (Number) conf.get(Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS);
@@ -138,13 +138,13 @@ public class KestrelThriftSpout extends BaseRichSpout {
         } else {
             String host = _hosts.get(myIndex % numHosts);
             _kestrels.add(new KestrelClientInfo(host, _port));
-        }       
+        }
     }
 
     public void close() {
         for(KestrelClientInfo info: _kestrels) info.closeClient();
 
-        // Closing the client connection causes all the open reliable reads to be aborted. 
+        // Closing the client connection causes all the open reliable reads to be aborted.
         // Thus, clear our local buffer of these reliable reads.
         _emitBuffer.clear();
 
@@ -167,14 +167,18 @@ public class KestrelThriftSpout extends BaseRichSpout {
             }
 
             assert items.size() <= BATCH_SIZE;
-//            LOG.info("Kestrel batch get fetched " + items.size() + " items. (batchSize= " + BATCH_SIZE + 
+//            LOG.info("Kestrel batch get fetched " + items.size() + " items. (batchSize= " + BATCH_SIZE +
 //                     " queueName=" + _queueName + ", index=" + index + ", host=" + info.host + ")");
 
             for(Item item : items) {
-                EmitItem emitItem = new EmitItem(_scheme.deserialize(item.get_data()),
-                                                 new KestrelSourceId(index, item.get_id()));
-                if(!_emitBuffer.offer(emitItem)) {
-                    throw new RuntimeException("KestrelThriftSpout's Internal Buffer Enqeueue Failed.");
+                List<Object> retItems = _scheme.deserialize(item.get_data());
+
+                if (retItems != null) {
+                    EmitItem emitItem = new EmitItem(retItems, new KestrelSourceId(index, item.get_id()));
+
+                    if(!_emitBuffer.offer(emitItem)) {
+                        throw new RuntimeException("KestrelThriftSpout's Internal Buffer Enqeueue Failed.");
+                    }
                 }
             }
 
@@ -198,10 +202,10 @@ public class KestrelThriftSpout extends BaseRichSpout {
         if(_emitBuffer.isEmpty()) tryEachKestrelUntilBufferFilled();
 
         EmitItem item = _emitBuffer.poll();
-        if(item != null) { 
+        if(item != null) {
             _collector.emit(item.tuple, item.sourceId);
         } else {  // If buffer is still empty here, then every kestrel Q is also empty.
-            Utils.sleep(10); 
+            Utils.sleep(10);
         }
     }
 
@@ -224,9 +228,9 @@ public class KestrelThriftSpout extends BaseRichSpout {
     public void ack(Object msgId) {
         KestrelSourceId sourceId = (KestrelSourceId) msgId;
         KestrelClientInfo info = _kestrels.get(sourceId.index);
-        
+
         //if the transaction didn't exist, it just returns false. so this code works
-        //even if client gets blacklisted, disconnects, and kestrel puts the item 
+        //even if client gets blacklisted, disconnects, and kestrel puts the item
         //back on the queue
         try {
             if(info.client!=null) {
@@ -235,14 +239,14 @@ public class KestrelThriftSpout extends BaseRichSpout {
                 info.client.confirm(_queueName, xids);
             }
         } catch(TException e) {
-            blacklist(info, e);            
+            blacklist(info, e);
         }
     }
-    
+
     public void fail(Object msgId) {
         KestrelSourceId sourceId = (KestrelSourceId) msgId;
         KestrelClientInfo info = _kestrels.get(sourceId.index);
-        
+
         // see not above about why this works with blacklisting strategy
         try {
             if(info.client!=null) {
@@ -251,7 +255,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
                 info.client.abort(_queueName, xids);
             }
         } catch(TException e) {
-            blacklist(info, e);            
+            blacklist(info, e);
         }
     }
 
@@ -259,4 +263,3 @@ public class KestrelThriftSpout extends BaseRichSpout {
         declarer.declare(getOutputFields());
     }
 }
-
