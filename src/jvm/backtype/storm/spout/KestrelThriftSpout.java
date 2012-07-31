@@ -170,6 +170,8 @@ public class KestrelThriftSpout extends BaseRichSpout {
 //            LOG.info("Kestrel batch get fetched " + items.size() + " items. (batchSize= " + BATCH_SIZE +
 //                     " queueName=" + _queueName + ", index=" + index + ", host=" + info.host + ")");
 
+            HashSet toAck = new HashSet();
+
             for(Item item : items) {
                 List<Object> retItems = _scheme.deserialize(item.get_data());
 
@@ -179,6 +181,16 @@ public class KestrelThriftSpout extends BaseRichSpout {
                     if(!_emitBuffer.offer(emitItem)) {
                         throw new RuntimeException("KestrelThriftSpout's Internal Buffer Enqeueue Failed.");
                     }
+                } else {
+                    toAck.add(item.get_id());
+                }
+            }
+
+            if(toAck.size() > 0) {
+                try {
+                    info.client.abort(_queueName, toAck);
+                } catch(TException e) {
+                    blacklist(info, e);
                 }
             }
 
