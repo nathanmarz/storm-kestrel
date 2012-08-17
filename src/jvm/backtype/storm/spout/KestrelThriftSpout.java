@@ -11,7 +11,6 @@ import java.util.Iterator;
 import java.util.Queue;
 import java.util.LinkedList;
 import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
 import java.util.ArrayList;
 import java.util.Arrays;
