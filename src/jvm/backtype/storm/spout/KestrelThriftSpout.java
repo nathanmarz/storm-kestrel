@@ -11,6 +11,7 @@ import java.util.Iterator;
 import java.util.Queue;
 import java.util.LinkedList;
 import backtype.storm.tuple.Fields;
+import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +38,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
     private String _queueName = null;
     private SpoutOutputCollector _collector;
     private Scheme _scheme;
+    private boolean _shouldEmitQueueName = false;
 
     private List<KestrelClientInfo> _kestrels;
     private int _emitIndex;
@@ -93,7 +95,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
         }
     }
 
-    public KestrelThriftSpout(List<String> hosts, int port, String queueName, Scheme scheme) {
+    public KestrelThriftSpout(List<String> hosts, int port, String queueName, Scheme scheme, boolean shouldEmitQueueName) {
         if(hosts.isEmpty()) {
             throw new IllegalArgumentException("Must configure at least one host");
         }
@@ -101,14 +103,31 @@ public class KestrelThriftSpout extends BaseRichSpout {
         _hosts = hosts;
         _queueName = queueName;
         _scheme = scheme;
+        _shouldEmitQueueName = shouldEmitQueueName;        
+    }
+
+    public KestrelThriftSpout(List<String> hosts, int port, String queueName, Scheme scheme) {
+        this(hosts, port, queueName, scheme, false);
+    }
+
+    public KestrelThriftSpout(String hostname, int port, String queueName, Scheme scheme, boolean shouldEmitQueueName) {
+        this(Arrays.asList(hostname), port, queueName, scheme, shouldEmitQueueName);
     }
 
     public KestrelThriftSpout(String hostname, int port, String queueName, Scheme scheme) {
         this(Arrays.asList(hostname), port, queueName, scheme);
     }
 
+    public KestrelThriftSpout(String hostname, int port, String queueName, boolean shouldEmitQueueName) {
+        this(hostname, port, queueName, new RawScheme(), shouldEmitQueueName);
+    }
+
     public KestrelThriftSpout(String hostname, int port, String queueName) {
         this(hostname, port, queueName, new RawScheme());
+    }
+
+    public KestrelThriftSpout(List<String> hosts, int port, String queueName, boolean shouldEmitQueueName) {
+        this(hosts, port, queueName, new RawScheme(), shouldEmitQueueName);
     }
 
     public KestrelThriftSpout(List<String> hosts, int port, String queueName) {
@@ -116,7 +135,11 @@ public class KestrelThriftSpout extends BaseRichSpout {
     }
 
     public Fields getOutputFields() {
-       return _scheme.getOutputFields();
+        if (_shouldEmitQueueName) {
+            List<String> fields = _scheme.getOutputFields().toList();
+            fields.add("queue");
+            return new Fields(fields);
+        } else return _scheme.getOutputFields();
     }
 
     int _messageTimeoutMillis;
@@ -174,6 +197,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
 
             for(Item item : items) {
                 List<Object> retItems = _scheme.deserialize(item.get_data());
+                if (_shouldEmitQueueName) retItems.add(_queueName);
 
                 if (retItems != null) {
                     EmitItem emitItem = new EmitItem(retItems, new KestrelSourceId(index, item.get_id()));
