@@ -37,6 +37,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
     private String _queueName = null;
     private SpoutOutputCollector _collector;
     private Scheme _scheme;
+    private int _batchSize;
 
     private List<KestrelClientInfo> _kestrels;
     private int _emitIndex;
@@ -93,14 +94,22 @@ public class KestrelThriftSpout extends BaseRichSpout {
         }
     }
 
-    public KestrelThriftSpout(List<String> hosts, int port, String queueName, Scheme scheme) {
+    public KestrelThriftSpout(List<String> hosts, int port, String queueName, Scheme scheme, int batchSize) {
         if(hosts.isEmpty()) {
             throw new IllegalArgumentException("Must configure at least one host");
+        }
+        if(batchSize < 1) {
+            throw new IllegalArgumentException("Batch size must be >= 1");
         }
         _port = port;
         _hosts = hosts;
         _queueName = queueName;
         _scheme = scheme;
+        _batchSize = batchSize;
+    }
+
+    public KestrelThriftSpout(List<String> hosts, int port, String queueName, Scheme scheme) {
+        this(hosts, port, queueName, scheme, BATCH_SIZE);
     }
 
     public KestrelThriftSpout(String hostname, int port, String queueName, Scheme scheme) {
@@ -160,7 +169,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
         if(now > info.blacklistTillTimeMs) {
             List<Item> items = null;
             try {
-                items = info.getValidClient().get(_queueName, BATCH_SIZE, 0, _messageTimeoutMillis);
+                items = info.getValidClient().get(_queueName, _batchSize, 0, _messageTimeoutMillis);
             } catch(TException e) {
                 blacklist(info, e);
                 return false;
