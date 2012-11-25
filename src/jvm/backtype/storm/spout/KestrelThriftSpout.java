@@ -14,6 +14,9 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 import java.util.ArrayList;
 import java.util.Arrays;
+
+import org.apache.commons.lang.builder.ToStringBuilder;
+import org.apache.commons.lang.builder.ToStringStyle;
 import org.apache.log4j.Logger;
 import net.lag.kestrel.thrift.Item;
 import org.apache.thrift7.TException;
@@ -31,9 +34,13 @@ public class KestrelThriftSpout extends BaseRichSpout {
     public static final long BLACKLIST_TIME_MS = 1000 * 60;
     public static final int BATCH_SIZE = 4000;
 
+    /** KestrelClient Blacklist and Autoabort Time */
+    protected long _blackListTimeMs = BLACKLIST_TIME_MS;
+    
+    /** KestrelClient recieve batch size */
+    protected int _batchSize = BATCH_SIZE;
 
-    private List<String> _hosts = null;
-    private int _port = -1;
+    private List<HostInfo> _hosts = null;
     private String _queueName = null;
     private SpoutOutputCollector _collector;
     private Scheme _scheme;
@@ -43,7 +50,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
 
     private Queue<EmitItem> _emitBuffer = new LinkedList<EmitItem>();
 
-    private class EmitItem {
+    protected class EmitItem {
         public KestrelSourceId sourceId;
         public List<Object> tuple;
 
@@ -53,7 +60,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
         }
     }
 
-    private static class KestrelSourceId {
+    protected static class KestrelSourceId {
         public KestrelSourceId(int index, long id) {
             this.index = index;
             this.id = id;
@@ -61,9 +68,16 @@ public class KestrelThriftSpout extends BaseRichSpout {
 
         int index;
         long id;
+        
+        @Override
+        public String toString( )
+        {
+            return ToStringBuilder.reflectionToString(this,
+                    ToStringStyle.SHORT_PREFIX_STYLE);
+        }
     }
 
-    private static class KestrelClientInfo {
+    protected static class KestrelClientInfo {
         public Long blacklistTillTimeMs;
         public String host;
         public int port;
@@ -93,12 +107,14 @@ public class KestrelThriftSpout extends BaseRichSpout {
         }
     }
 
-    public KestrelThriftSpout(List<String> hosts, int port, String queueName, Scheme scheme) {
-        if(hosts.isEmpty()) {
+    public KestrelThriftSpout(List<String> hostnames, int port, String queueName, Scheme scheme) {
+        if(hostnames.isEmpty()) {
             throw new IllegalArgumentException("Must configure at least one host");
         }
-        _port = port;
-        _hosts = hosts;
+        _hosts = new ArrayList<HostInfo>();
+        for (String hostname : hostnames) {
+            _hosts.add(new HostInfo(hostname, port));
+        }
         _queueName = queueName;
         _scheme = scheme;
     }
@@ -111,15 +127,32 @@ public class KestrelThriftSpout extends BaseRichSpout {
         this(hostname, port, queueName, new RawScheme());
     }
 
-    public KestrelThriftSpout(List<String> hosts, int port, String queueName) {
-        this(hosts, port, queueName, new RawScheme());
+    public KestrelThriftSpout(List<String> hostnames, int port, String queueName) {
+        this(hostnames, port, queueName, new RawScheme());
+    }
+
+    public KestrelThriftSpout(List<String> hosts, String queueName, Scheme scheme) {
+        if(hosts.isEmpty()) {
+            throw new IllegalArgumentException("Must configure at least one host");
+        }
+        _hosts = new ArrayList<HostInfo>();
+        for (String host : hosts) {
+            String[] array = host.split(":");
+            _hosts.add(new HostInfo(array[0], Integer.valueOf(array[1])));
+        }
+        _queueName = queueName;
+        _scheme = scheme;
+    }
+
+    public KestrelThriftSpout(List<String> hosts, String queueName) {
+        this(hosts, queueName, new RawScheme());
     }
 
     public Fields getOutputFields() {
        return _scheme.getOutputFields();
     }
 
-    int _messageTimeoutMillis;
+    protected int _messageTimeoutMillis;
 
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
         //TODO: should switch this to maxTopologyMessageTimeout
@@ -132,12 +165,12 @@ public class KestrelThriftSpout extends BaseRichSpout {
         int myIndex = context.getThisTaskIndex();
         int numHosts = _hosts.size();
         if(numTasks < numHosts) {
-            for(String host: _hosts) {
-                _kestrels.add(new KestrelClientInfo(host, _port));
+            for(HostInfo host: _hosts) {
+                _kestrels.add(new KestrelClientInfo(host.host, host.port));
             }
         } else {
-            String host = _hosts.get(myIndex % numHosts);
-            _kestrels.add(new KestrelClientInfo(host, _port));
+            HostInfo host = _hosts.get(myIndex % numHosts);
+            _kestrels.add(new KestrelClientInfo(host.host, host.port));
         }
     }
 
@@ -160,13 +193,13 @@ public class KestrelThriftSpout extends BaseRichSpout {
         if(now > info.blacklistTillTimeMs) {
             List<Item> items = null;
             try {
-                items = info.getValidClient().get(_queueName, BATCH_SIZE, 0, _messageTimeoutMillis);
+                items = info.getValidClient().get(_queueName, _batchSize, 0, _messageTimeoutMillis);
             } catch(TException e) {
                 blacklist(info, e);
                 return false;
             }
 
-            assert items.size() <= BATCH_SIZE;
+            assert items.size() <= _batchSize;
 //            LOG.info("Kestrel batch get fetched " + items.size() + " items. (batchSize= " + BATCH_SIZE +
 //                     " queueName=" + _queueName + ", index=" + index + ", host=" + info.host + ")");
 
@@ -176,9 +209,9 @@ public class KestrelThriftSpout extends BaseRichSpout {
                 List<Object> retItems = _scheme.deserialize(item.get_data());
 
                 if (retItems != null) {
-                    EmitItem emitItem = new EmitItem(retItems, new KestrelSourceId(index, item.get_id()));
+                    EmitItem emitItem = generateEmitItem(retItems, new KestrelSourceId(index, item.get_id()));
 
-                    if(!_emitBuffer.offer(emitItem)) {
+                    if(emitItem != null && !_emitBuffer.offer(emitItem)) {
                         throw new RuntimeException("KestrelThriftSpout's Internal Buffer Enqeueue Failed.");
                     }
                 } else {
@@ -198,6 +231,13 @@ public class KestrelThriftSpout extends BaseRichSpout {
         }
         return false;
     }
+    
+    protected EmitItem generateEmitItem(List<Object> retItems, KestrelSourceId sourceId)
+    {
+        // If you needs custom tuple generation, override this method.
+        EmitItem generatedItem = new EmitItem(retItems, sourceId);
+        return generatedItem;
+    }
 
     public void tryEachKestrelUntilBufferFilled() {
         for(int i=0; i<_kestrels.size(); i++) {
@@ -211,14 +251,23 @@ public class KestrelThriftSpout extends BaseRichSpout {
     }
 
     public void nextTuple() {
-        if(_emitBuffer.isEmpty()) tryEachKestrelUntilBufferFilled();
-
-        EmitItem item = _emitBuffer.poll();
-        if(item != null) {
-            _collector.emit(item.tuple, item.sourceId);
-        } else {  // If buffer is still empty here, then every kestrel Q is also empty.
-            Utils.sleep(10);
+        if(isRestricted() == false)
+        {
+            if(_emitBuffer.isEmpty()) tryEachKestrelUntilBufferFilled();
+    
+            EmitItem item = _emitBuffer.poll();
+            if(item != null) {
+                _collector.emit(item.tuple, item.sourceId);
+            } else {  // If buffer is still empty here, then every kestrel Q is also empty.
+                Utils.sleep(10);
+            }
         }
+    }
+
+    protected boolean isRestricted()
+    {
+        // If you needs restrict state, override this method.
+        return false;
     }
 
     private void blacklist(KestrelClientInfo info, Throwable t) {
@@ -226,7 +275,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
 
         //this case can happen when it fails to connect to Kestrel (and so never stores the connection)
         info.closeClient();
-        info.blacklistTillTimeMs = System.currentTimeMillis() + BLACKLIST_TIME_MS;
+        info.blacklistTillTimeMs = System.currentTimeMillis() + _blackListTimeMs;
 
         int index = _kestrels.indexOf(info);
 
@@ -273,5 +322,21 @@ public class KestrelThriftSpout extends BaseRichSpout {
 
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
         declarer.declare(getOutputFields());
+    }
+
+    /**
+     * @return the _queueName
+     */
+    protected String getQueueName( )
+    {
+        return this._queueName;
+    }
+
+    /**
+     * @param _queueName the _queueName to set
+     */
+    protected void setQueueName(String _queueName)
+    {
+        this._queueName = _queueName;
     }
 }
