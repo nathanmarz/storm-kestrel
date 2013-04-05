@@ -172,7 +172,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
 
         Object queueNameString = conf.get(KESTREL_QUEUE_NAME);
         if(queueNameString != null) {
-            _queueName = (String)portString;
+            _queueName = (String)queueNameString;
         }
 
 
