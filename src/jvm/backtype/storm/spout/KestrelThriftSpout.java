@@ -31,6 +31,11 @@ import backtype.storm.utils.Utils;
 public class KestrelThriftSpout extends BaseRichSpout {
     public static Logger LOG = Logger.getLogger(KestrelThriftSpout.class);
 
+    //Configuration keys to be checked for in Conf map
+    public static final String KESTREL_HOSTS_STRING_KEY = "KESTREL_HOSTS";
+    public static final String KESTREL_PORT_KEY = "KESTREL_PORT";
+    public static final String KESTREL_QUEUE_NAME = "KESTREL_QUEUE";
+
     public static final long BLACKLIST_TIME_MS = 1000 * 60;
     public static final int BATCH_SIZE = 4000;
 
@@ -126,6 +131,19 @@ public class KestrelThriftSpout extends BaseRichSpout {
         this(hosts, port, queueName, new RawMultiScheme());
     }
 
+    //Constructor(s) for when we intend to configure host, port, queue name, etc at runtime only
+    public KestrelThriftSpout(Scheme scheme) {
+        this(new SchemeAsMultiScheme(scheme));
+    }
+
+    public KestrelThriftSpout() {
+        this(new RawMultiScheme());
+    }
+
+    public KestrelThriftSpout(MultiScheme scheme) {
+        this._scheme = scheme;
+    }
+
     public Fields getOutputFields() {
        return _scheme.getOutputFields();
     }
@@ -133,6 +151,32 @@ public class KestrelThriftSpout extends BaseRichSpout {
     int _messageTimeoutMillis;
 
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+        //If any environment specific host/port/queue settings are present in map, use these
+        Object hostStringRaw = conf.get(KESTREL_HOSTS_STRING_KEY);
+        if(hostStringRaw != null) {
+            String[] hosts = ((String)hostStringRaw).split(",");
+            if(hosts.length == 0) {
+                throw new IllegalArgumentException("Must have at least one host");
+            }
+            _hosts = new ArrayList<String>();
+            //normalize host strings then add to _hosts list
+            for(String host : hosts) {
+                _hosts.add(host.trim());
+            }
+        }
+
+        Object portString = conf.get(KESTREL_PORT_KEY);
+        if(portString != null) {
+            _port = ((Number)portString).intValue();
+        }
+
+        Object queueNameString = conf.get(KESTREL_QUEUE_NAME);
+        if(queueNameString != null) {
+            _queueName = (String)portString;
+        }
+
+
+
         //TODO: should switch this to maxTopologyMessageTimeout
         Number timeout = (Number) conf.get(Config.TOPOLOGY_MESSAGE_TIMEOUT_SECS);
         _messageTimeoutMillis = 1000 * timeout.intValue();
