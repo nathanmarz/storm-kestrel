@@ -32,9 +32,9 @@ public class KestrelThriftSpout extends BaseRichSpout {
     public static Logger LOG = Logger.getLogger(KestrelThriftSpout.class);
 
     //Configuration keys to be checked for in Conf map
-    public static final String KESTREL_HOSTS_STRING_KEY = "KESTREL_HOSTS";
-    public static final String KESTREL_PORT_KEY = "KESTREL_PORT";
-    public static final String KESTREL_QUEUE_NAME = "KESTREL_QUEUE";
+    public static final String KESTREL_HOSTS_STRING_KEY = "kestrel.hosts";
+    public static final String KESTREL_PORT_KEY = "kestrel.port";
+    public static final String KESTREL_QUEUE_NAME = "kestrel.queue";
 
     public static final long BLACKLIST_TIME_MS = 1000 * 60;
     public static final int BATCH_SIZE = 4000;
