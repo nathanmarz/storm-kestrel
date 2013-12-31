@@ -20,3 +20,9 @@ NANNY
 _release
 *.zip
 .lein-deps-sum
+target/
+.idea/
+*.iml
+*.classpath
+*.project
+*.settings/
