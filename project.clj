@@ -1,4 +1,4 @@
-(defproject storm/storm-kestrel "1.0.0"
+(defproject storm/storm-kestrel "1.1.0-SNAPSHOT"
   :source-paths ["src/clj"]
   :java-source-paths ["src/jvm"]
   :javac-options {:debug "true"}
