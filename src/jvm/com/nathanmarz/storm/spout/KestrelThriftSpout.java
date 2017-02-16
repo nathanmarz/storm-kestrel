@@ -1,5 +1,21 @@
-package backtype.storm.spout;
+package com.nathanmarz.storm.spout;
 
+import net.lag.kestrel.thrift.Item;
+import org.apache.log4j.Logger;
+import org.apache.storm.Config;
+import org.apache.storm.spout.MultiScheme;
+import org.apache.storm.spout.RawMultiScheme;
+import org.apache.storm.spout.Scheme;
+import org.apache.storm.spout.SchemeAsMultiScheme;
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.topology.base.BaseRichSpout;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.utils.Utils;
+import org.apache.thrift7.TException;
+
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -9,17 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-import net.lag.kestrel.thrift.Item;
-
-import org.apache.log4j.Logger;
-import org.apache.thrift7.TException;
-
-import backtype.storm.Config;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.topology.base.BaseRichSpout;
-import backtype.storm.tuple.Fields;
-import backtype.storm.utils.Utils;
 
 
 /**
@@ -184,7 +189,7 @@ public class KestrelThriftSpout extends BaseRichSpout {
             HashSet toAck = new HashSet();
 
             for(Item item : items) {
-                Iterable<List<Object>> retItems = _scheme.deserialize(item.get_data());
+                Iterable<List<Object>> retItems = _scheme.deserialize(ByteBuffer.wrap(item.get_data()));
 
                 if (retItems != null) {
                     for(List<Object> retItem: retItems) {
