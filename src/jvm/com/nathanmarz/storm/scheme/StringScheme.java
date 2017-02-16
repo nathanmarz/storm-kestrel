@@ -1,16 +1,18 @@
-package backtype.storm.scheme;
+package com.nathanmarz.storm.scheme;
 
-import backtype.storm.spout.Scheme;
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Values;
+import org.apache.storm.spout.Scheme;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.Values;
+
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.util.List;
 
 public class StringScheme implements Scheme {
 
-    public List<Object> deserialize(byte[] bytes) {
+    public List<Object> deserialize(ByteBuffer bytes) {
         try {
-            return new Values(new String(bytes, "UTF-8"));
+            return new Values(new String(bytes.array(), "UTF-8"));
         } catch (UnsupportedEncodingException e) {
             throw new RuntimeException(e);
         }
